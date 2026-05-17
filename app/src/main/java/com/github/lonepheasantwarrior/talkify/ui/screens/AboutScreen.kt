@@ -254,6 +254,8 @@ fun AboutScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // 打赏功能已关闭隐藏
+            /*
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -294,6 +296,7 @@ fun AboutScreen(
                     }
                 }
             }
+            */
 
             Spacer(modifier = Modifier.height(48.dp))
         }

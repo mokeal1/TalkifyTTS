@@ -738,6 +738,7 @@ class XiaoMiMimoTtsEngine : AbstractTtsEngine() {
         return when (configKey) {
             "api_key" -> context.getString(R.string.api_key_label)
             "voice_id" -> context.getString(R.string.voice_select_label)
+            "model" -> context.getString(R.string.model_select_label)
             else -> null
         }
     }

@@ -10,7 +10,7 @@ import java.net.URL
 import java.net.UnknownHostException
 
 class UpdateChecker(
-    private val owner: String = "LonePheasantWarrior",
+    private val owner: String = "mokeal1",
     private val repo: String = "TalkifyTTS"
 ) {
     companion object {

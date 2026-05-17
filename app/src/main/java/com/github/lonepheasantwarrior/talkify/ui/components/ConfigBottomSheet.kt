@@ -1,5 +1,6 @@
 package com.github.lonepheasantwarrior.talkify.ui.components
 
+import android.content.Context
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -293,6 +294,17 @@ private fun buildConfigItems(
                     )
                 )
             }
+            val modelLabel = getLabel("model")
+            if (modelLabel != null) {
+                items.add(
+                    ConfigItem(
+                        key = "model",
+                        label = modelLabel,
+                        value = config.model,
+                        selectorOptions = loadXiaoMiMimoModelOptions()
+                    )
+                )
+            }
         }
         is MiniMaxTtsConfig -> {
             val label = getLabel("api_key")
@@ -363,9 +375,11 @@ private fun buildConfigFromItems(
         }
         is XiaoMiMimoConfig -> {
             val apiKey = items.find { it.key == "api_key" }?.value ?: ""
+            val model = items.find { it.key == "model" }?.value ?: XiaoMiMimoConfig.DEFAULT_MODEL
             XiaoMiMimoConfig(
                 apiKey = apiKey,
-                voiceId = voiceId
+                voiceId = voiceId,
+                model = model
             )
         }
         is MiniMaxTtsConfig -> {
@@ -376,5 +390,20 @@ private fun buildConfigFromItems(
             )
         }
         else -> defaultConfig
+    }
+}
+
+/**
+ * 加载小米 MiMo 模型选项列表
+ * 从资源文件读取模型 ID 和显示名称
+ */
+private fun loadXiaoMiMimoModelOptions(): List<Pair<String, String>> {
+    val context = com.github.lonepheasantwarrior.talkify.TalkifyAppHolder.getContext() ?: return emptyList()
+    return try {
+        val models = context.resources.getStringArray(R.array.xiaomi_mimo_models)
+        val displayNames = context.resources.getStringArray(R.array.xiaomi_mimo_models_display_names)
+        models.zip(displayNames).map { (id, name) -> name to id }
+    } catch (e: Exception) {
+        emptyList()
     }
 }

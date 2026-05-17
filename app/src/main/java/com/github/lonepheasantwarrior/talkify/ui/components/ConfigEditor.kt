@@ -121,6 +121,46 @@ private fun ConfigItemEditor(
     onVoiceSelected: (VoiceInfo) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // 通用下拉选择框（模型选择等）
+    val selectorOpts = item.selectorOptions
+    if (selectorOpts != null && selectorOpts.isNotEmpty()) {
+        var expanded by remember { mutableStateOf(false) }
+        val selectedLabel = selectorOpts.find { it.second == item.value }?.first ?: item.value
+
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = it },
+            modifier = modifier
+        ) {
+            OutlinedTextField(
+                value = selectedLabel,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(item.label) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                selectorOpts.forEach { (displayName, value) ->
+                    DropdownMenuItem(
+                        text = { Text(displayName) },
+                        onClick = {
+                            onValueChange(value)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+        return
+    }
+
     if (item.isVoiceSelector && availableVoices.isNotEmpty()) {
         var expanded by remember { mutableStateOf(false) }
         val selectedVoice = availableVoices.find { it.voiceId == item.value }
