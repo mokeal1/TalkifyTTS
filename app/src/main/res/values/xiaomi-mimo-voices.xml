@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ==================== 小米 MiMo 音色列表 ==================== -->
+    <!-- 模型支持: mimo-v2.5 (基础) / 自定义克隆模型ID -->
+    <!-- 克隆音色: 用户可输入自定义 voice ID -->
+
+    <string-array name="xiaomi_mimo_voices">
+        <!-- 中文 - 通用女声 -->
+        <item>default_zh</item>
+        <item>mimo_default</item>
+        <item>zh_female_wenrou</item>
+        <item>zh_female_tianmei</item>
+        <item>zh_female_huopo</item>
+        <item>zh_female_chengshu</item>
+        <item>zh_female_shaonv</item>
+        <item>zh_female_yujie</item>
+        <item>zh_female_zhixing</item>
+        <item>zh_female_qingliang</item>
+        <!-- 中文 - 通用男声 -->
+        <item>zh_male_wenhe</item>
+        <item>zh_male_yangguang</item>
+        <item>zh_male_chenwen</item>
+        <item>zh_male_weiyan</item>
+        <!-- 中文 - 角色/场景音色 -->
+        <item>zh_role_ertong</item>
+        <item>zh_role_xiaoxuesheng</item>
+        <item>zh_role_laonian</item>
+        <item>zh_role_zhubo</item>
+        <item>zh_role_kefu</item>
+        <item>zh_role_jiaose_1</item>
+        <item>zh_role_jiaose_2</item>
+        <item>zh_role_jiaose_3</item>
+        <!-- 英文 -->
+        <item>default_en</item>
+        <item>en_female_gentle</item>
+        <item>en_female_lively</item>
+        <item>en_male_deep</item>
+        <item>en_male_bright</item>
+        <!-- 粤语 -->
+        <item>yue_female_default</item>
+        <item>yue_male_default</item>
+        <!-- 日语 -->
+        <item>ja_female_default</item>
+        <item>ja_male_default</item>
+        <!-- 韩语 -->
+        <item>ko_female_default</item>
+        <item>ko_male_default</item>
+        <!-- ===== 克隆音色占位 ===== -->
+        <!-- 用户可在配置中手动输入克隆音色ID -->
+        <item>__custom_clone_voice__</item>
+    </string-array>
+
+    <string-array name="xiaomi_mimo_voices_display_names">
+        <!-- 中文 - 通用女声 -->
+        <item>MiMo-中文女声（默认）</item>
+        <item>MiMo-默认</item>
+        <item>MiMo-温柔女声</item>
+        <item>MiMo-甜美女声</item>
+        <item>MiMo-活泼女声</item>
+        <item>MiMo-成熟女声</item>
+        <item>MiMo-少女音</item>
+        <item>MiMo-御姐音</item>
+        <item>MiMo-知性女声</item>
+        <item>MiMo-清亮女声</item>
+        <!-- 中文 - 通用男声 -->
+        <item>MiMo-温和男声</item>
+        <item>MiMo-阳光男声</item>
+        <item>MiMo-沉稳男声</item>
+        <item>MiMo-威严男声</item>
+        <!-- 中文 - 角色/场景音色 -->
+        <item>MiMo-儿童音</item>
+        <item>MiMo-小学生</item>
+        <item>MiMo-老年音</item>
+        <item>MiMo-主播音</item>
+        <item>MiMo-客服音</item>
+        <item>MiMo-角色音色1</item>
+        <item>MiMo-角色音色2</item>
+        <item>MiMo-角色音色3</item>
+        <!-- 英文 -->
+        <item>MiMo-英文女声（默认）</item>
+        <item>MiMo-英文温柔女声</item>
+        <item>MiMo-英文活泼女声</item>
+        <item>MiMo-英文深沉男声</item>
+        <item>MiMo-英文明亮男声</item>
+        <!-- 粤语 -->
+        <item>MiMo-粤语女声</item>
+        <item>MiMo-粤语男声</item>
+        <!-- 日语 -->
+        <item>MiMo-日语女声</item>
+        <item>MiMo-日语男声</item>
+        <!-- 韩语 -->
+        <item>MiMo-韩语女声</item>
+        <item>MiMo-韩语男声</item>
+        <!-- 克隆音色 -->
+        <item>🔧 自定义克隆音色（手动输入ID）</item>
+    </string-array>
+
+    <string-array name="xiaomi_mimo_voices_descriptions">
+        <item>中文通用女声，适合日常朗读</item>
+        <item>MiMo默认音色，中英文通用</item>
+        <item>温柔细腻的女声，适合情感类文本</item>
+        <item>甜美可爱女声，适合轻松内容</item>
+        <item>活泼开朗女声，适合趣味内容</item>
+        <item>成熟稳重女声，适合正式内容</item>
+        <item>青春少女音，适合校园/青春题材</item>
+        <item>御姐风格，适合成熟女性角色</item>
+        <item>知性优雅女声，适合知识类内容</item>
+        <item>清亮通透女声，适合新闻播报</item>
+        <item>温和亲切男声，适合日常朗读</item>
+        <item>阳光开朗男声，适合轻松内容</item>
+        <item>沉稳大气男声，适合正式场合</item>
+        <item>威严庄重男声，适合商务内容</item>
+        <item>儿童配音，适合绘本/童话</item>
+        <item>小学生配音，适合教材/读物</item>
+        <item>老年配音，适合长者角色</item>
+        <item>专业主播风格，适合播客/电台</item>
+        <item>客服语音风格，适合IVR场景</item>
+        <item>自定义角色音色，可在API控制台管理</item>
+        <item>自定义角色音色，可在API控制台管理</item>
+        <item>自定义角色音色，可在API控制台管理</item>
+        <item>英文默认女声，适合英文朗读</item>
+        <item>英文温柔女声</item>
+        <item>英文活泼女声</item>
+        <item>英文深沉男声</item>
+        <item>英文明亮男声</item>
+        <item>粤语女声</item>
+        <item>粤语男声</item>
+        <item>日语女声</item>
+        <item>日语男声</item>
+        <item>韩语女声</item>
+        <item>韩语男声</item>
+        <item>在配置页面手动输入你在小米MiMo控制台创建的克隆音色ID</item>
+    </string-array>
+
+    <!-- ===== 小米 MiMo 模型列表 ===== -->
+    <string-array name="xiaomi_mimo_models">
+        <item>mimo-v2.5</item>
+    </string-array>
+
+    <string-array name="xiaomi_mimo_models_display_names">
+        <item>MiMo V2.5（默认）</item>
+    </string-array>
+</resources>

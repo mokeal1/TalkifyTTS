@@ -1,0 +1,537 @@
+package com.github.lonepheasantwarrior.talkify.service.engine.impl
+
+import android.speech.tts.Voice
+import android.util.Base64
+import com.alibaba.dashscope.aigc.multimodalconversation.AudioParameters
+import com.alibaba.dashscope.aigc.multimodalconversation.MultiModalConversation
+import com.alibaba.dashscope.aigc.multimodalconversation.MultiModalConversationParam
+import com.alibaba.dashscope.aigc.multimodalconversation.MultiModalConversationResult
+import com.alibaba.dashscope.exception.ApiException
+import com.alibaba.dashscope.exception.NoApiKeyException
+import com.alibaba.dashscope.exception.UploadFileException
+import com.alibaba.dashscope.utils.Constants
+import com.github.lonepheasantwarrior.talkify.R
+import com.github.lonepheasantwarrior.talkify.domain.model.BaseEngineConfig
+import com.github.lonepheasantwarrior.talkify.domain.model.Qwen3TtsConfig
+import com.github.lonepheasantwarrior.talkify.service.TtsErrorCode
+import com.github.lonepheasantwarrior.talkify.service.TtsLogger
+import com.github.lonepheasantwarrior.talkify.service.engine.AbstractTtsEngine
+import com.github.lonepheasantwarrior.talkify.service.engine.AudioConfig
+import com.github.lonepheasantwarrior.talkify.service.engine.SynthesisParams
+import com.github.lonepheasantwarrior.talkify.service.engine.TtsSynthesisListener
+import io.reactivex.Flowable
+import io.reactivex.disposables.Disposable
+import io.reactivex.subscribers.DisposableSubscriber
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.util.Locale
+
+/**
+ * 阿里云百炼 - 通义千问3语音合成引擎实现
+ *
+ * 继承 [AbstractTtsEngine]，实现 TTS 引擎接口
+ * 支持流式音频合成，将音频数据块实时回调给系统
+ *
+ * 引擎 ID：qwen3-tts
+ * 服务提供商：阿里云百炼
+ */
+class Qwen3TtsEngine : AbstractTtsEngine() {
+
+    companion object {
+        const val ENGINE_ID = "qwen3-tts"
+        const val ENGINE_NAME = "通义千问3语音合成"
+
+        const val MODEL_QWEN3_TTS_FLASH = "qwen3-tts-flash"
+
+        private const val DEFAULT_LANGUAGE = "Auto"
+
+        private const val MAX_TEXT_LENGTH = 500
+
+        private const val VOICE_NAME_SEPARATOR = "::"
+
+        /**
+         * 支持的语言列表（ISO 639-2 三字母代码）
+         */
+        val SUPPORTED_LANGUAGES = arrayOf("zho", "eng", "deu", "ita", "por", "spa", "jpn", "kor", "fra", "rus")
+    }
+
+    @Volatile
+    private var currentDisposable: Disposable? = null
+
+    @Volatile
+    private var isCancelled = false
+
+    private var hasCompleted = false
+
+    val audioConfig: AudioConfig
+        @JvmName("getAudioConfigProperty") get() = AudioConfig.QWEN3_TTS
+
+    init {
+        Constants.baseHttpApiUrl = "https://dashscope.aliyuncs.com/api/v1"
+    }
+
+    override fun getEngineId(): String = ENGINE_ID
+
+    override fun getEngineName(): String = ENGINE_NAME
+
+    override fun synthesize(
+        text: String, params: SynthesisParams, config: BaseEngineConfig, listener: TtsSynthesisListener
+    ) {
+        checkNotReleased()
+
+        val qwenConfig = config as? Qwen3TtsConfig
+        if (qwenConfig == null) {
+            logError("Invalid config type, expected Qwen3TtsConfig")
+            listener.onError(TtsErrorCode.getErrorMessage(TtsErrorCode.ERROR_ENGINE_NOT_CONFIGURED))
+            return
+        }
+
+        if (qwenConfig.apiKey.isEmpty()) {
+            logError("API key is not configured")
+            listener.onError(TtsErrorCode.getErrorMessage(TtsErrorCode.ERROR_ENGINE_NOT_CONFIGURED))
+            return
+        }
+
+        val textChunks = splitTextIntoChunks(text)
+        if (textChunks.isEmpty()) {
+            logWarning("待朗读文本内容为空")
+            listener.onSynthesisCompleted()
+            return
+        }
+
+        logInfo("Starting streaming synthesis: textLength=${text.length}, chunks=${textChunks.size}, pitch=${params.pitch}, speechRate=${params.speechRate}")
+        logDebug("Audio config: ${audioConfig.getFormatDescription()}")
+
+        isCancelled = false
+        hasCompleted = false
+
+        processNextChunk(textChunks, 0, params, qwenConfig, listener)
+    }
+
+    private fun processNextChunk(
+        chunks: List<String>,
+        index: Int,
+        params: SynthesisParams,
+        config: Qwen3TtsConfig,
+        listener: TtsSynthesisListener
+    ) {
+        if (isCancelled || hasCompleted) {
+            return
+        }
+
+        if (index >= chunks.size) {
+            logDebug("All chunks processed")
+            hasCompleted = true
+            listener.onSynthesisCompleted()
+            return
+        }
+
+        val chunk = chunks[index]
+        logDebug("Processing chunk $index/${chunks.size}, length=${chunk.length}")
+
+        try {
+            val conversation = MultiModalConversation()
+            val param = buildConversationParam(chunk, params, config)
+            val resultFlowable: Flowable<MultiModalConversationResult> =
+                conversation.streamCall(param)
+
+            currentDisposable = resultFlowable.subscribeWith(
+                createChunkSubscriber(
+                    chunks, index, params, config, listener
+                )
+            )
+        } catch (e: Exception) {
+            val (errorCode, errorMessage) = mapExceptionToErrorCode(e)
+            logError("Synthesis error: $errorMessage", e)
+            listener.onError(TtsErrorCode.getErrorMessage(errorCode, errorMessage))
+        }
+    }
+
+    private fun mapExceptionToErrorCode(e: Exception): Pair<Int, String> {
+        return when (e) {
+            is NoApiKeyException -> {
+                TtsErrorCode.ERROR_ENGINE_NOT_CONFIGURED to "API Key 未配置"
+            }
+
+            is UploadFileException -> {
+                TtsErrorCode.ERROR_SYNTHESIS_FAILED to (e.message ?: "Upload failed")
+            }
+
+            is ApiException -> {
+                val message = e.message ?: ""
+                val errorCode = when {
+                    message.contains("rate limit", ignoreCase = true) || message.contains(
+                        "429",
+                        ignoreCase = true
+                    ) -> {
+                        TtsErrorCode.ERROR_API_RATE_LIMITED
+                    }
+
+                    message.contains("401", ignoreCase = true) || message.contains(
+                        "Unauthorized",
+                        ignoreCase = true
+                    ) || message.contains("invalid api_key", ignoreCase = true) -> {
+                        TtsErrorCode.ERROR_API_AUTH_FAILED
+                    }
+
+                    message.contains("500", ignoreCase = true) || message.contains(
+                        "502",
+                        ignoreCase = true
+                    ) || message.contains("503", ignoreCase = true) || message.contains(
+                        "504",
+                        ignoreCase = true
+                    ) -> {
+                        TtsErrorCode.ERROR_API_SERVER_ERROR
+                    }
+
+                    else -> {
+                        TtsErrorCode.ERROR_SYNTHESIS_FAILED
+                    }
+                }
+                errorCode to message
+            }
+
+            is SocketTimeoutException -> {
+                TtsErrorCode.ERROR_NETWORK_TIMEOUT to "网络连接超时，请检查网络设置"
+            }
+
+            is ConnectException -> {
+                TtsErrorCode.ERROR_NETWORK_UNAVAILABLE to "无法连接到服务器，请检查网络连接"
+            }
+
+            else -> {
+                TtsErrorCode.ERROR_GENERIC to "发生错误：${e.message ?: "未知错误"}"
+            }
+        }
+    }
+
+    private fun createChunkSubscriber(
+        chunks: List<String>,
+        index: Int,
+        params: SynthesisParams,
+        config: Qwen3TtsConfig,
+        listener: TtsSynthesisListener
+    ): DisposableSubscriber<MultiModalConversationResult> {
+        return object : DisposableSubscriber<MultiModalConversationResult>() {
+            private var isFirstChunk = index == 0
+            // 新增：用于跟踪当前文本块的第一个音频数据包，以便剥离可能存在的 WAV 头
+            private var isFirstAudioPacket = true
+
+            override fun onStart() {
+                super.onStart()
+                if (isFirstChunk) {
+                    listener.onSynthesisStarted()
+                    isFirstChunk = false
+                }
+            }
+
+            override fun onNext(result: MultiModalConversationResult) {
+                if (isCancelled || hasCompleted) {
+                    return
+                }
+
+                try {
+                    var audioData = extractAudioData(result)
+                    if (audioData != null && audioData.isNotEmpty()) {
+
+                        // 【核心修复】：如果是第一个数据包，检查并剥离 WAV 文件头
+                        if (isFirstAudioPacket) {
+                            audioData = stripWavHeader(audioData)
+                            isFirstAudioPacket = false
+                        }
+
+                        // 二次校验，防止剥离头文件后数据为空
+                        if (audioData.isNotEmpty()) {
+                            logDebug("Received audio chunk: ${audioData.size} bytes")
+                            listener.onAudioAvailable(
+                                audioData,
+                                audioConfig.sampleRate,
+                                audioConfig.audioFormat,
+                                audioConfig.channelCount
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+                    logError("Error processing audio chunk", e)
+                    val (errorCode, errorMessage) = mapExceptionToErrorCode(e)
+                    listener.onError(TtsErrorCode.getErrorMessage(errorCode, errorMessage))
+                    dispose()
+                }
+            }
+
+            override fun onError(throwable: Throwable) {
+                logError("Stream error for chunk $index", throwable)
+                val (errorCode, errorMessage) = mapExceptionToErrorCode(throwable as Exception)
+                listener.onError(TtsErrorCode.getErrorMessage(errorCode, errorMessage))
+            }
+
+            override fun onComplete() {
+                logDebug("Chunk $index completed")
+                if (!isCancelled && !hasCompleted) {
+                    processNextChunk(chunks, index + 1, params, config, listener)
+                }
+            }
+        }
+    }
+
+    /**
+     * 【核心修复】：移除音频流中的 WAV 文件头（如果存在）
+     * 检查数据是否以 RIFF 和 WAVE 开头，如果是，则安全截取 44 字节之后的数据
+     */
+    private fun stripWavHeader(data: ByteArray): ByteArray {
+        // 标准 WAV 头包含 44 个字节
+        if (data.size >= 44 &&
+            data[0] == 'R'.code.toByte() && data[1] == 'I'.code.toByte() &&
+            data[2] == 'F'.code.toByte() && data[3] == 'F'.code.toByte() &&
+            data[8] == 'W'.code.toByte() && data[9] == 'A'.code.toByte() &&
+            data[10] == 'V'.code.toByte() && data[11] == 'E'.code.toByte()
+        ) {
+            logInfo("Detected WAV header in stream, stripping the first 44 bytes to prevent audio cracking.")
+            return data.copyOfRange(44, data.size)
+        }
+        return data
+    }
+
+    private fun splitTextIntoChunks(text: String): List<String> {
+        if (text.isEmpty()) return emptyList()
+        if (text.length <= MAX_TEXT_LENGTH) return listOf(text)
+
+        val chunks = mutableListOf<String>()
+        var lastSplitPos = 0
+
+        var i = 0
+        while (i < text.length) {
+            val remainingLength = text.length - lastSplitPos
+
+            if (remainingLength <= MAX_TEXT_LENGTH) {
+                chunks.add(text.substring(lastSplitPos))
+                break
+            }
+
+            val isSentenceEnd = checkSentenceEnd(text, i)
+            val isMidPause = checkMidPause(text, i)
+
+            if (isSentenceEnd || isMidPause) {
+                val chunkLength = i - lastSplitPos + 1
+                if (chunkLength <= MAX_TEXT_LENGTH) {
+                    chunks.add(text.substring(lastSplitPos, i + 1))
+                    lastSplitPos = i + 1
+                    i++
+                    continue
+                }
+            }
+
+            val splitPos = findBestSplitPos(text, lastSplitPos)
+            if (splitPos > lastSplitPos) {
+                chunks.add(text.substring(lastSplitPos, splitPos))
+                lastSplitPos = splitPos
+            } else {
+                chunks.add(text.substring(lastSplitPos, lastSplitPos + MAX_TEXT_LENGTH))
+                lastSplitPos += MAX_TEXT_LENGTH
+            }
+            i = lastSplitPos
+        }
+
+        return chunks
+    }
+
+    private fun checkSentenceEnd(text: String, index: Int): Boolean {
+        if (index < 0) return false
+        val sentenceEnds = listOf("。", "！", "？", ".", "!", "?")
+        for (ender in sentenceEnds) {
+            if (text.regionMatches(index, ender, 0, ender.length)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun checkMidPause(text: String, index: Int): Boolean {
+        if (index < 0) return false
+        val midPauses = listOf("，", "、", ",", ";", "；", "：", ":")
+        for (pause in midPauses) {
+            if (text.regionMatches(index, pause, 0, pause.length)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun findBestSplitPos(text: String, startPos: Int): Int {
+        val searchEnd = minOf(startPos + MAX_TEXT_LENGTH, text.length)
+
+        for (i in searchEnd - 1 downTo startPos + 1) {
+            if (checkMidPause(text, i)) {
+                return i + 1
+            }
+        }
+
+        for (i in searchEnd - 1 downTo startPos + 1) {
+            val char = text[i]
+            if (char == ' ' || char == '\n' || char == '\t') {
+                return i + 1
+            }
+        }
+
+        return searchEnd
+    }
+
+    private fun buildConversationParam(
+        text: String, params: SynthesisParams, config: Qwen3TtsConfig
+    ): MultiModalConversationParam {
+        val voice = if (config.voiceId.isNotEmpty()) {
+            parseVoice(config.voiceId)
+        } else {
+            logWarning("Voice ID not configured, using default CHERRY")
+            AudioParameters.Voice.CHERRY
+        }
+
+        val languageType = convertToQwenLanguageType(params.language)
+
+        return MultiModalConversationParam.builder().apiKey(config.apiKey)
+            .model(MODEL_QWEN3_TTS_FLASH).text(text).voice(voice).languageType(languageType)
+            // 【保险参数】：主动向云端请求 PCM 裸流（部分版本 SDK/大模型已支持该参数）
+            .parameter("format", "pcm")
+            .build()
+    }
+
+    private fun convertToQwenLanguageType(language: String?): String {
+        if (language.isNullOrBlank()) return DEFAULT_LANGUAGE
+        return when (language.lowercase()) {
+            "zh", "zho", "chi" -> "Chinese"
+            "en", "eng" -> "English"
+            "de", "ger", "deu" -> "German"
+            "it", "ita" -> "Italian"
+            "pt", "por" -> "Portuguese"
+            "es", "spa" -> "Spanish"
+            "ja", "jpn" -> "Japanese"
+            "ko", "kor" -> "Korean"
+            "fr", "fra", "fre" -> "French"
+            "ru", "rus" -> "Russian"
+            else -> DEFAULT_LANGUAGE
+        }
+    }
+
+    private fun parseVoice(voiceId: String): AudioParameters.Voice {
+        return try {
+            AudioParameters.Voice.valueOf(voiceId)
+        } catch (_: IllegalArgumentException) {
+            try {
+                AudioParameters.Voice.valueOf(voiceId.uppercase())
+            } catch (_: IllegalArgumentException) {
+                logWarning("Invalid voice ID: $voiceId, using default CHERRY")
+                AudioParameters.Voice.CHERRY
+            }
+        }
+    }
+
+    @Suppress("UNUSED_PARAMETER")
+    private fun isSynthesIsFinished(result: MultiModalConversationResult): Boolean {
+        return false
+    }
+
+    private fun extractAudioData(result: MultiModalConversationResult): ByteArray? {
+        return try {
+            val output = result.output ?: return null
+            val audio = output.audio ?: return null
+            val base64Data = audio.data
+
+            if (base64Data.isNullOrBlank()) {
+                return null
+            }
+
+            Base64.decode(base64Data, Base64.DEFAULT)
+        } catch (e: Exception) {
+            logError("Failed to extract audio data", e)
+            null
+        }
+    }
+
+    override fun getSupportedLanguages(): Set<String> {
+        return SUPPORTED_LANGUAGES.toSet()
+    }
+
+    override fun getDefaultLanguages(): Array<String> {
+        return arrayOf(Locale.SIMPLIFIED_CHINESE.isO3Language, Locale.SIMPLIFIED_CHINESE.isO3Country, "")
+    }
+
+    override fun getSupportedVoices(): List<Voice> {
+        val voices = mutableListOf<Voice>()
+
+        for (langCode in getSupportedLanguages()) {
+            for (engineVoice in AudioParameters.Voice.entries) {
+                voices.add(
+                    Voice(
+                        "${engineVoice.value}$VOICE_NAME_SEPARATOR$langCode",
+                        Locale.forLanguageTag(langCode),
+                        Voice.QUALITY_NORMAL,
+                        Voice.LATENCY_NORMAL,
+                        true,
+                        emptySet()
+                    )
+                )
+            }
+        }
+        return voices
+    }
+
+    override fun getDefaultVoiceId(lang: String?, country: String?, variant: String?, currentVoiceId: String?): String {
+        if (!currentVoiceId.isNullOrBlank()) {
+            return "$currentVoiceId$VOICE_NAME_SEPARATOR$lang"
+        }
+        return "${AudioParameters.Voice.CHERRY.value}$VOICE_NAME_SEPARATOR$lang"
+    }
+
+    override fun isVoiceIdCorrect(voiceId: String?): Boolean {
+        if (voiceId == null) {
+            return false
+        }
+        return AudioParameters.Voice.entries.any { it.value == extractRealVoiceName(voiceId) }
+    }
+
+    private fun extractRealVoiceName(androidVoiceName: String?): String? {
+        if (androidVoiceName == null) return null
+        return if (androidVoiceName.contains(VOICE_NAME_SEPARATOR)) {
+            androidVoiceName.substringBefore(VOICE_NAME_SEPARATOR)
+        } else {
+            androidVoiceName
+        }
+    }
+
+    override fun stop() {
+        logInfo("Stopping synthesis")
+        isCancelled = true
+        currentDisposable?.dispose()
+        currentDisposable = null
+    }
+
+    override fun release() {
+        logInfo("Releasing engine")
+        isCancelled = true
+        currentDisposable?.dispose()
+        currentDisposable = null
+        super.release()
+    }
+
+    override fun isConfigured(config: BaseEngineConfig?): Boolean {
+        val qwenConfig = config as? Qwen3TtsConfig
+        var result = false
+        if (qwenConfig != null) {
+            result = qwenConfig.apiKey.isNotBlank()
+        }
+        TtsLogger.d("$tag: isConfigured = $result")
+        return result
+    }
+
+    override fun createDefaultConfig(): BaseEngineConfig {
+        return Qwen3TtsConfig()
+    }
+
+    override fun getConfigLabel(configKey: String, context: android.content.Context): String? {
+        return when (configKey) {
+            "api_key" -> context.getString(R.string.api_key_label)
+            "voice_id" -> context.getString(R.string.voice_select_label)
+            else -> null
+        }
+    }
+}
