@@ -44,6 +44,9 @@ jobs:
             -keypass talkify123 \
             -dname "CN=TalkifyCI, OU=Talkify, O=TalkifyTTS, L=CI, ST=CI, C=CN"
 
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
       - name: Build Release APK
         run: ./gradlew assembleRelease
         env:
