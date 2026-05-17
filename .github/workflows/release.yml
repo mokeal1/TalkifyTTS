@@ -37,7 +37,7 @@ jobs:
       - name: Generate signing keystore
         run: |
           keytool -genkey -v \
-            -keystore app/talkify-ci.jks \
+            -keystore talkify-ci.jks \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -alias talkify \
             -storepass talkify123 \
@@ -50,7 +50,7 @@ jobs:
       - name: Build Release APK
         run: ./gradlew assembleRelease
         env:
-          TALKIFY_KEYSTORE_PATH: app/talkify-ci.jks
+          TALKIFY_KEYSTORE_PATH: talkify-ci.jks
           TALKIFY_STORE_PASSWORD: talkify123
           TALKIFY_KEY_ALIAS: talkify
           TALKIFY_KEY_PASSWORD: talkify123
