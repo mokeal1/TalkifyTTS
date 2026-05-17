@@ -12,6 +12,10 @@ on:
         required: true
         type: string
 
+# 授予 GITHUB_TOKEN 写入 Release 的权限
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build APK
