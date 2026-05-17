@@ -39,6 +39,16 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // CI 签名：从环境变量读取密钥库路径和密码
+            val keystorePath = System.getenv("TALKIFY_KEYSTORE_PATH")
+            if (!keystorePath.isNullOrBlank()) {
+                signingConfig = signingConfigs.create("ci") {
+                    storeFile = file(keystorePath)
+                    storePassword = System.getenv("TALKIFY_STORE_PASSWORD") ?: ""
+                    keyAlias = System.getenv("TALKIFY_KEY_ALIAS") ?: "talkify"
+                    keyPassword = System.getenv("TALKIFY_KEY_PASSWORD") ?: ""
+                }
+            }
         }
     }
     compileOptions {
