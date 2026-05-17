@@ -1,14 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ==================== 小米 MiMo 音色列表 ==================== -->
-    <!-- 模型支持: mimo-v2.5 (默认) / mimo-v2-tts / 自定义克隆模型ID -->
-    <!-- 
-      音色ID获取方式: 登录 https://api.xiaomimimo.com/ 控制台 → 语音合成 → 音色管理
-      克隆音色: 在控制台创建克隆音色后，将音色ID填入配置页面的"声音选择"即可
-    -->
+    <!-- ==================== 小米 MiMo V2.5 音色列表 ==================== -->
+    <!-- 音色来源: api.xiaomimimo.com 控制台 语音合成 → 音色管理 -->
+    <!-- 克隆音色: 在控制台创建克隆音色后，选"自定义音色ID"手动输入 -->
 
     <string-array name="xiaomi_mimo_voices">
-        <!-- ===== 已验证的音色 (MiMo V2 预置) ===== -->
+        <!-- ===== 中文音色 ===== -->
+        <item>bingtang</item>
+        <item>moli</item>
+        <item>suda</item>
+        <item>baihua</item>
+        <!-- ===== 英文音色 ===== -->
+        <item>mia</item>
+        <item>chloe</item>
+        <item>milo</item>
+        <item>dean</item>
+        <!-- ===== 默认音色 ===== -->
         <item>default_zh</item>
         <item>default_en</item>
         <item>mimo_default</item>
@@ -17,27 +24,49 @@
     </string-array>
 
     <string-array name="xiaomi_mimo_voices_display_names">
+        <!-- 中文音色 -->
+        <item>冰糖 - 活泼少女</item>
+        <item>茉莉 - 知性女声</item>
+        <item>苏打 - 阳光少年</item>
+        <item>白桦 - 成熟男声</item>
+        <!-- 英文音色 -->
+        <item>Mia - Lively girl</item>
+        <item>Chloe - Sweet Dreamy</item>
+        <item>Milo - Sunny boy</item>
+        <item>Dean - Steady Gentle</item>
+        <!-- 默认音色 -->
         <item>MiMo 中文女声（默认）</item>
         <item>MiMo 英文女声（默认）</item>
         <item>MiMo 通用默认</item>
-        <item>🔧 自定义音色ID（手动输入）</item>
+        <!-- 自定义 -->
+        <item>🔧 自定义音色ID（克隆音色手动输入）</item>
     </string-array>
 
     <string-array name="xiaomi_mimo_voices_descriptions">
-        <item>MiMo V2.5 中文通用女声，已通过API验证</item>
-        <item>MiMo V2.5 英文通用女声，已通过API验证</item>
-        <item>MiMo V2.5 通用默认音色，中英文均可</item>
+        <item>活泼少女风格，适合轻松愉快的内容</item>
+        <item>知性女声，适合知识类、播客类内容</item>
+        <item>阳光少年，适合青春校园题材</item>
+        <item>成熟男声，适合正式、商务类内容</item>
+        <item>Lively girl, suitable for casual content</item>
+        <item>Sweet dreamy voice, soft and gentle</item>
+        <item>Sunny boy, bright and energetic</item>
+        <item>Steady gentle, calm and reliable</item>
+        <item>MiMo 中文通用女声，已通过API验证</item>
+        <item>MiMo 英文通用女声，已通过API验证</item>
+        <item>MiMo 通用默认音色，中英文均可</item>
         <item>在小米MiMo控制台创建克隆音色后，将音色ID粘贴到配置页面中</item>
     </string-array>
 
     <!-- ===== 小米 MiMo 模型列表 ===== -->
     <string-array name="xiaomi_mimo_models">
+        <item>mimo-v2.5-tts</item>
         <item>mimo-v2.5</item>
         <item>mimo-v2-tts</item>
     </string-array>
 
     <string-array name="xiaomi_mimo_models_display_names">
-        <item>MiMo V2.5（推荐）</item>
-        <item>MiMo V2 TTS</item>
+        <item>MiMo V2.5 TTS（推荐）</item>
+        <item>mimo-v2.5（备用）</item>
+        <item>MiMo V2 TTS（旧版）</item>
     </string-array>
 </resources>

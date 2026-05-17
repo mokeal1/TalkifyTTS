@@ -8,7 +8,7 @@ package com.github.lonepheasantwarrior.talkify.domain.model
  *
  * @property voiceId 声音 ID，如 "default_zh"，支持克隆音色自定义ID
  * @property apiKey 小米平台的 API Key，用于认证，从小米开放平台获取
- * @property model 模型 ID，默认 "mimo-v2.5"，支持克隆模型自定义ID
+ * @property model 模型 ID，默认 "mimo-v2.5-tts"，支持克隆模型自定义ID
  */
 data class XiaoMiMimoConfig(
     override val voiceId: String = "",
@@ -17,6 +17,6 @@ data class XiaoMiMimoConfig(
 ) : BaseEngineConfig(voiceId) {
 
     companion object {
-        const val DEFAULT_MODEL = "mimo-v2.5"
+        const val DEFAULT_MODEL = "mimo-v2.5-tts"
     }
 }
